@@ -54,40 +54,55 @@ vscode://vscode-remote/ssh-remote+myserver/home/user/app/main.ts:1:1
 
 ### 包结构
 
-本目录是标准的客户端插件包（`dsh.client` 形态）：
+本目录是标准的 profile-bundle 客户端插件包（`dsh.client` + `dsh.bundle.patch` 双声明）：
 
 | 路径 | 作用 |
 | --- | --- |
-| `package.json` | 清单：`dsh.client` 声明（`platform: "web"`、注入边）与 `./client` 导出 |
+| `package.json` | 清单：`dsh.bundle.patch`（profile 补丁层）+ `dsh.client` 声明（`platform: "web"`、注入边）与 `./client` 导出 |
+| `cordis.patch.yml` | bundle 补丁：插入本插件一行到 web profile roster |
 | `lib/index.js` | Node 半部 —— 空 `apply`（让该行存在于 host 组合） |
 | `lib/client.js` | 浏览器半部 —— 手写的 `window.__ModuleLoader__.load({ id, factory })` bundle，导出 `apply`/`inject` |
 | `src/index.js` | 客户端逻辑的可读副本（动态插件形态） |
 | `README.md` | 本文档 |
 
-### 永久安装（组合 profile）
+## 安装
 
-包已符号链接进 profile 的 node_modules：
+DSH 插件通过 `dsh plugin` 命令装进 **profile**（`dsh web` 对应 `web` profile）。本插件采用官方 **profile-bundle** 形态（`package.json` 声明 `dsh.bundle.patch` + `dsh.client`，见 `cordis.patch.yml`），一条命令即可安装。
 
+### 方式一：从 GitHub 仓库安装（推荐）
+
+插件尚未发布到 npm，直接 clone 后以 `link:` 装进 profile：
+
+```sh
+# 1. 克隆仓库
+git clone https://github.com/shugen002/deepseek-vscode-proxy.git
+cd deepseek-vscode-proxy
+
+# 2. 安装进 web profile（把 checkout 链接为依赖，并注册为 bundle 层）
+dsh plugin --profile web add link:$(pwd)
+
+# 3. 重启 dsh web，设置 → 插件 → 可配置 出现该插件卡片即生效
+dsh web
 ```
-~/.dsh/profiles/node_modules/@deepseek-ai/dsh-vscode-ssh-open -> /root/deepseek-vscode-proxy
+
+> 也可以直接 `dsh plugin --profile web add link:/绝对/路径/deepseek-vscode-proxy`，`$(pwd)` 只是把 checkout 目录锚定到当前路径。
+
+装完重启后，在 **设置 → 插件 → 可配置 → VSCode SSH Remote Open** 里填 SSH 主机名即用。
+
+### 验证与卸载
+
+安装成功后重启 `dsh web`，设置里的插件配置出现该卡片即生效；也可用 `dsh --profile web --dump-config` 确认 bundle 层已挂载。若没出现，多半是安装后没有重启进程（刷新页面不够）。
+
+卸载：
+
+```sh
+dsh plugin --profile web remove @deepseek-ai/dsh-vscode-ssh-open
+# 然后重启 dsh web
 ```
-
-并在 profile 补丁层加了一行：
-
-```yaml
-# ~/.dsh/profiles/web/cordis.patch.yml
-- insert:
-    - id: vscode-ssh-open
-      name: '@deepseek-ai/dsh-vscode-ssh-open'
-```
-
-**改完组合后重启 web 应用**（`dsh --profile web`）—— loader 在启动时组配各行，客户端 bundle 由 `dsh-client-modules` 对 Loader 条目的扫描发现。重启后插件对 **每个会话** 自动加载，无需每次授权。
-
-卸载：删除补丁行（可选再删符号链接），然后重启。
 
 ### 临时安装（动态插件）
 
-想不重启就做单会话试用：把 `src/index.js` 作为 `code.client` 通过 Cordis 动态插件运行时安装（`cordis_define` + `cordis_run`；先授予一次性客户端授权）。
+不装进 profile、不重启即可单会话试用：把 `src/index.js` 作为 `code.client` 通过 Cordis 动态插件运行时安装（`cordis_define` + `cordis_run`；先授予一次性客户端授权）。
 
 ### 说明
 
@@ -146,36 +161,51 @@ vscode://vscode-remote/ssh-remote+myserver/home/user/app/main.ts:1:1
 
 | Path | Purpose |
 | --- | --- |
-| `package.json` | Manifest: `dsh.client` declaration (`platform: "web"`, inject edges) and the `./client` export. |
+| `package.json` | Manifest: `dsh.bundle.patch` (profile patch layer) + `dsh.client` declaration (`platform: "web"`, inject edges) and the `./client` export. |
+| `cordis.patch.yml` | Bundle patch: inserts this plugin's row into the web profile roster. |
 | `lib/index.js` | Node half — an empty `apply` so the row exists in the host composition. |
 | `lib/client.js` | Browser half — hand-written `window.__ModuleLoader__.load({ id, factory })` bundle with `apply`/`inject` exports. |
 | `src/index.js` | Readable copy of the client-half logic (the dynamic-plugin form). |
 | `README.md` | This document. |
 
-### Permanent installation (composed profile)
+## Installation
 
-The package is symlinked into the profile's node_modules:
+DSH plugins are installed into a **profile** (the Web GUI is the `web` profile) via the `dsh plugin` command. This plugin uses the official **profile-bundle** shape (`package.json` declares `dsh.bundle.patch` + `dsh.client`, see `cordis.patch.yml`), so it installs like any DSH plugin.
 
+### From the GitHub repository (recommended)
+
+Not published to npm yet — clone it and add the checkout with `link:`:
+
+```sh
+# 1. clone
+git clone https://github.com/shugen002/deepseek-vscode-proxy.git
+cd deepseek-vscode-proxy
+
+# 2. install into the web profile (links the checkout, registers it as a bundle layer)
+dsh plugin --profile web add link:$(pwd)
+
+# 3. restart dsh web — the card appears at Settings > Plugins > Configurable
+dsh web
 ```
-~/.dsh/profiles/node_modules/@deepseek-ai/dsh-vscode-ssh-open -> /root/deepseek-vscode-proxy
+
+> Or point at the absolute path directly: `dsh plugin --profile web add link:/abs/path/deepseek-vscode-proxy`. `$(pwd)` just anchors the checkout path.
+
+After the restart, open **Settings → Plugins → Configurable → VSCode SSH Remote Open** and enter your SSH Remote host.
+
+### Verify & uninstall
+
+After a successful install, restart `dsh web` — the plugin card shows in the plugins settings (a page refresh is not enough; you must restart the process). You can also confirm the bundle layer mounted with `dsh --profile web --dump-config`.
+
+Uninstall:
+
+```sh
+dsh plugin --profile web remove @deepseek-ai/dsh-vscode-ssh-open
+# then restart dsh web
 ```
-
-and one row was added to the profile patch layer:
-
-```yaml
-# ~/.dsh/profiles/web/cordis.patch.yml
-- insert:
-    - id: vscode-ssh-open
-      name: '@deepseek-ai/dsh-vscode-ssh-open'
-```
-
-**Restart the web app** (`dsh --profile web`) after editing the composition — the loader composes rows at boot and the client bundle is discovered by the `dsh-client-modules` scan of the Loader entries. After restart the plugin loads for every session with no per-session approval.
-
-To uninstall: remove the patch row (and optionally the symlink), then restart.
 
 ### Temporary (dynamic) install
 
-For a per-session trial without a restart, feed `src/index.js` as `code.client` through the Cordis dynamic-plugin runtime (`cordis_define` + `cordis_run`; grant the one-time client approval).
+For a per-session trial without a profile install or restart, feed `src/index.js` as `code.client` through the Cordis dynamic-plugin runtime (`cordis_define` + `cordis_run`; grant the one-time client approval).
 
 ### Notes
 
