@@ -9,4 +9,4 @@
 # /plugins/<id>/client.js) load in the web GUI.
 - insert:
     - id: vscode-ssh-open
-      name: '@deepseek-ai/dsh-vscode-ssh-open'
+      name: '@shugen002/dsh-vscode-ssh-open'

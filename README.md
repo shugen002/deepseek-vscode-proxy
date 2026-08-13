@@ -96,7 +96,7 @@ dsh web
 卸载：
 
 ```sh
-dsh plugin --profile web remove @deepseek-ai/dsh-vscode-ssh-open
+dsh plugin --profile web remove @shugen002/dsh-vscode-ssh-open
 # 然后重启 dsh web
 ```
 
@@ -199,7 +199,7 @@ After a successful install, restart `dsh web` — the plugin card shows in the p
 Uninstall:
 
 ```sh
-dsh plugin --profile web remove @deepseek-ai/dsh-vscode-ssh-open
+dsh plugin --profile web remove @shugen002/dsh-vscode-ssh-open
 # then restart dsh web
 ```
 

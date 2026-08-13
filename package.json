@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-vscode-ssh-open",
+  "name": "@shugen002/dsh-vscode-ssh-open",
   "description": "Open local files in VSCode over SSH Remote from the Web UI: intercepts the view-file hand-off and navigates the browser to vscode://vscode-remote/ssh-remote+<host><path>:1:1.",
   "version": "0.1.0",
   "private": true,
@@ -27,7 +27,8 @@
     }
   },
   "files": [
-    "lib"
+    "lib",
+    "cordis.patch.yml"
   ],
   "license": "MIT"
 }
