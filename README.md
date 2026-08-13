@@ -33,12 +33,30 @@ vscode://vscode-remote/ssh-remote+<主机><绝对路径>:1:1
 
 ### 配置
 
-打开 **设置 → 插件 → 可配置**，会出现本插件的卡片：
+采用与 Cordis 官方一致的 **配置 Schema** 机制：node 半部用 `Schemastery` 声明 `Config` Schema，并通过 `installSettingsSection` 注册成 `dsh-vscode-ssh-open` 配置命名空间；浏览器半部用 `ctx.settingsScope` 绑定同一命名空间读写。
+
+**方式一：设置卡片（推荐）**
+
+打开 **设置 → 插件 → 可配置**，展开本插件卡片，输入 SSH 主机后点「Save」。
 
 > **VSCode SSH Remote Open**
-> SSH Remote host for opening files via vscode://vscode-remote/ssh-remote+<host><path>:1:1.
+> Open local files via vscode://vscode-remote/ssh-remote+<host><path>:1:1
 
-输入你的 SSH Remote 主机，如 `myserver` 或 `user@myserver`（含端口也可写 `user@myserver:2222`，主机字符串原样透传）。配置值持久化到 `localStorage`（key `dsh.vscode-ssh-open.host`），页面刷新不丢失。留空则保持系统默认打开。
+输入 SSH Remote 主机，如 `myserver` 或 `user@myserver`（含端口也可写 `user@myserver:2222`，主机字符串原样透传）；留空保存则清除配置、恢复系统默认打开。
+
+**方式二：组合 `config:` 块**
+
+也可以直接在 profile 的组合行里给配置，加载时由 schema 校验、默认值补齐（可搭配 `!!js` 表达式）：
+
+```yaml
+# 在 cordis.patch.yml 或你的 profile 层中覆盖该行
+- config:
+    - id: vscode-ssh-open
+      config:
+        sshHost: !!js process.env.SSH_VSC_HOST ?? ''
+```
+
+配置是真正的 Cordis 配置（由共享 schema 校验），而非 localStorage。
 
 示例：主机 `myserver`，路径 `/home/user/app/main.ts` →
 
@@ -54,15 +72,15 @@ vscode://vscode-remote/ssh-remote+myserver/home/user/app/main.ts:1:1
 
 ### 包结构
 
-本目录是标准的 profile-bundle 客户端插件包（`dsh.client` + `dsh.bundle.patch` 双声明）：
+本目录是标准的 profile-bundle 双半部插件包（`dsh.client` + `dsh.bundle.patch` 双声明）：
 
 | 路径 | 作用 |
 | --- | --- |
-| `package.json` | 清单：`dsh.bundle.patch`（profile 补丁层）+ `dsh.client` 声明（`platform: "web"`、注入边）与 `./client` 导出 |
+| `package.json` | 清单：`dsh.bundle.patch`（profile 补丁层）+ `dsh.client` 声明（`platform: "web"`、注入边）与 `./client` 导出；宿主依赖 `@deepseek-ai/dsh-settings`/`@deepseek-ai/schemastery` |
 | `cordis.patch.yml` | bundle 补丁：插入本插件一行到 web profile roster |
-| `lib/index.js` | Node 半部 —— 空 `apply`（让该行存在于 host 组合） |
-| `lib/client.js` | 浏览器半部 —— 手写的 `window.__ModuleLoader__.load({ id, factory })` bundle，导出 `apply`/`inject` |
-| `src/index.js` | 客户端逻辑的可读副本（动态插件形态） |
+| `lib/index.js` | Node 半部 —— `Schemastery` `Config` Schema + `installSettingsSection` 注册配置命名空间 |
+| `lib/client.js` | 浏览器半部 —— `window.__ModuleLoader__.load` bundle：`settingsScope` 绑定额配置、`openPath` 拦截、设置卡片；导出 `apply`/`inject` |
+| `src/index.js` | 客户端逻辑的可读副本（与服务端一致） |
 | `README.md` | 本文档 |
 
 ## 安装
@@ -143,7 +161,16 @@ Open **Settings → Plugins → Configurable**. This plugin's card appears there
 > **VSCode SSH Remote Open**
 > SSH Remote host for opening files via vscode://vscode-remote/ssh-remote+<host><path>:1:1.
 
-Enter your SSH Remote host — e.g. `myserver` or `user@myserver` (or `user@myserver:2222`; the host string is passed through verbatim). The value is persisted to `localStorage` (`dsh.vscode-ssh-open.host`), so it survives page reloads. Leave it empty to keep the OS default open behavior.
+Enter your SSH Remote host — e.g. `myserver` or `user@myserver` (or `user@myserver:2222`; the host string is passed through verbatim). Leave it empty (save) to clear the value and keep the OS default open behavior.
+
+**Configuration follows the official Cordis config model**: the node half declares a `Schemastery` `Config` Schema and registers the `dsh-vscode-ssh-open` namespace via `installSettingsSection`; the browser half binds it with `ctx.settingsScope`. Besides the settings card, you can seed it from the composition row's `config:` block (schema-validated, defaults applied, `!!js` allowed):
+
+```yaml
+- config:
+    - id: vscode-ssh-open
+      config:
+        sshHost: !!js process.env.SSH_VSC_HOST ?? ''
+```
 
 Example: host `myserver`, path `/home/user/app/main.ts` →
 
@@ -161,11 +188,11 @@ vscode://vscode-remote/ssh-remote+myserver/home/user/app/main.ts:1:1
 
 | Path | Purpose |
 | --- | --- |
-| `package.json` | Manifest: `dsh.bundle.patch` (profile patch layer) + `dsh.client` declaration (`platform: "web"`, inject edges) and the `./client` export. |
+| `package.json` | Manifest: `dsh.bundle.patch` (profile patch layer) + `dsh.client` declaration (`platform: "web"`, inject edges) and the `./client` export; host deps `@deepseek-ai/dsh-settings`/`@deepseek-ai/schemastery`. |
 | `cordis.patch.yml` | Bundle patch: inserts this plugin's row into the web profile roster. |
-| `lib/index.js` | Node half — an empty `apply` so the row exists in the host composition. |
-| `lib/client.js` | Browser half — hand-written `window.__ModuleLoader__.load({ id, factory })` bundle with `apply`/`inject` exports. |
-| `src/index.js` | Readable copy of the client-half logic (the dynamic-plugin form). |
+| `lib/index.js` | Node half — `Schemastery` `Config` Schema + `installSettingsSection` registering the config namespace. |
+| `lib/client.js` | Browser half — hand-written `window.__ModuleLoader__.load` bundle: binds `settingsScope`, intercepts `openPath`, renders the settings card; exports `apply`/`inject`. |
+| `src/index.js` | Readable copy of the client-half logic (in step with the bundle). |
 | `README.md` | This document. |
 
 ## Installation
